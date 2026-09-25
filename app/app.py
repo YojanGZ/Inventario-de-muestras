@@ -43,7 +43,7 @@ eleccion = st.sidebar.selectbox("Menú", menu)
 if eleccion == "Ingresar Muestra":
     st.header("Ingreso de Nueva Muestra")
 
-    with st.form("form_muestra"):
+    with st.form("form_muestra", clear_on_submit=True):
         st.subheader("Datos Generales")
         col1, col2 = st.columns(2)
         with col1:
@@ -132,6 +132,10 @@ elif eleccion == "Inventario":
             color = 'red' if val == 'Vencido' else ('orange' if val == 'Vence Hoy' else 'green')
             return f'color: {color}'
 
-        st.dataframe(df.style.applymap(color_estado, subset=['estado']))
+        # Manejar compatibilidad de versiones antiguas de Pandas que usaban applymap
+        if hasattr(df.style, 'map'):
+            st.dataframe(df.style.map(color_estado, subset=['estado']))
+        else:
+            st.dataframe(df.style.applymap(color_estado, subset=['estado']))
     else:
         st.info("No hay muestras registradas en el inventario.")

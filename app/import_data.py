@@ -5,7 +5,7 @@ import sqlite3
 conn = sqlite3.connect('inventario.db')
 
 # Leer el archivo excel, ignorando las primeras 4 filas que son encabezados
-df = pd.read_excel('/app/ELABORACIÓN_DE_PRODUCTOS_CON_CONTROL_DE_DESCARTES_CORREGIDO.xlsx', skiprows=4, header=None)
+df = pd.read_excel('../ELABORACIÓN_DE_PRODUCTOS_CON_CONTROL_DE_DESCARTES_CORREGIDO.xlsx', skiprows=4, header=None)
 
 # Mapear las columnas a los nombres de la base de datos
 # 0: FECHA ELABORACIÓN
