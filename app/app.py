@@ -37,7 +37,7 @@ c.execute('''
 conn.commit()
 
 # Sidebar para navegación
-menu = ["Ingresar Muestra", "Inventario"]
+menu = ["Ingresar Muestra", "Inventario Completo", "Muestras Vencidas"]
 eleccion = st.sidebar.selectbox("Menú", menu)
 
 if eleccion == "Ingresar Muestra":
@@ -51,19 +51,18 @@ if eleccion == "Ingresar Muestra":
             producto = st.text_input("Producto")
             numero_orden = st.text_input("Número Orden de Fabricación")
         with col2:
-            cantidad_muestra = st.number_input("Cantidad Muestra (g)", min_value=0.0)
+            cantidad_muestra = st.number_input("Cantidad Muestra (g)", min_value=0.0, format="%.1f")
             fecha_descarte = st.date_input("Fecha de Descarte/Vencimiento")
-            cantidad_producto = st.number_input("Cantidad Producto (Kg-L)", min_value=0.0)
+            cantidad_producto = st.number_input("Cantidad Producto (Kg-L)", min_value=0.0, format="%.1f")
 
         st.subheader("Cocción y Enfriamiento")
         col3, col4 = st.columns(2)
         with col3:
-            temperatura_coccion = st.number_input("Temp. Final de Cocción (°C)")
+            temperatura_coccion = st.number_input("Temp. Final de Cocción (°C)", format="%.1f")
             hora_inicial_enfriamiento = st.time_input("Hora Inicial Enfriamiento")
             hora_final_enfriamiento = st.time_input("Hora Final Enfriamiento")
         with col4:
-            tiempo_total_enfriamiento = st.text_input("Tiempo Total Enfriamiento")
-            temperatura_final_enfriamiento = st.number_input("Temp. Enfriamiento Final (°C)")
+            temperatura_final_enfriamiento = st.number_input("Temp. Enfriamiento Final (°C)", format="%.1f")
             nro_termometro = st.text_input("Nro. Termómetro")
 
         responsable_elaboracion = st.text_input("Responsable Elaboración")
@@ -83,6 +82,22 @@ if eleccion == "Ingresar Muestra":
         submit_button = st.form_submit_button(label="Guardar Muestra")
 
         if submit_button:
+            # Calcular tiempo de enfriamiento automáticamente aquí tras hacer submit
+            try:
+                t1 = datetime.combine(date.today(), hora_inicial_enfriamiento)
+                t2 = datetime.combine(date.today(), hora_final_enfriamiento)
+
+                # Si final es menor que inicial, asumimos que pasó al día siguiente
+                if t2 < t1:
+                    t2 = datetime.combine(date.today() + pd.Timedelta(days=1), hora_final_enfriamiento)
+
+                diff = t2 - t1
+                horas = diff.seconds // 3600
+                minutos = (diff.seconds % 3600) // 60
+                tiempo_calculado = f"{horas}h {minutos}m"
+            except Exception:
+                tiempo_calculado = ""
+
             c.execute('''
                 INSERT INTO muestras (
                     fecha_elaboracion, producto, numero_orden, cantidad_muestra, fecha_descarte,
@@ -94,48 +109,78 @@ if eleccion == "Ingresar Muestra":
             ''', (
                 fecha_elaboracion, producto, numero_orden, cantidad_muestra, fecha_descarte,
                 cantidad_producto, temperatura_coccion, str(hora_inicial_enfriamiento),
-                str(hora_final_enfriamiento), tiempo_total_enfriamiento, temperatura_final_enfriamiento,
+                str(hora_final_enfriamiento), tiempo_calculado, temperatura_final_enfriamiento,
                 nro_termometro, responsable_elaboracion, sabor, olor, color, textura,
                 responsable_sensorial, observacion
             ))
             conn.commit()
             st.success("Muestra guardada exitosamente!")
 
-elif eleccion == "Inventario":
-    st.header("Inventario de Muestras")
-
+elif eleccion == "Inventario Completo" or eleccion == "Muestras Vencidas":
     # Cargar datos
     df = pd.read_sql_query("SELECT * FROM muestras", conn)
 
     if not df.empty:
+        # Formatear columnas numéricas a 1 decimal
+        numeric_cols = ['cantidad_muestra', 'cantidad_producto', 'temperatura_coccion', 'temperatura_final_enfriamiento']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: f"{x:.1f}" if pd.notnull(x) else x)
+
         # Convertir fechas para comparación
-        df['fecha_descarte'] = pd.to_datetime(df['fecha_descarte']).dt.date
+        df['fecha_descarte_dt'] = pd.to_datetime(df['fecha_descarte']).dt.date
         hoy = date.today()
 
         # Añadir columna de estado
-        df['estado'] = df['fecha_descarte'].apply(
+        df['estado'] = df['fecha_descarte_dt'].apply(
             lambda x: 'Vencido' if pd.notnull(x) and x < hoy else ('Vence Hoy' if pd.notnull(x) and x == hoy else 'Vigente')
         )
 
-        # Mostrar notificaciones de vencimiento
-        vencidos = df[df['estado'] == 'Vencido']
-        if not vencidos.empty:
-            st.error(f"⚠️ Alerta: Hay {len(vencidos)} muestras vencidas!")
-            with st.expander("Ver muestras vencidas"):
-                st.dataframe(vencidos[['producto', 'numero_orden', 'fecha_descarte']])
+        # Ocultar la columna datetime original que usamos para calcular
+        df = df.drop(columns=['fecha_descarte_dt'])
 
-        # Mostrar tabla completa
-        st.subheader("Todas las muestras")
-
-        # Aplicar colores según el estado
+        # Definir los colores según el estado
         def color_estado(val):
             color = 'red' if val == 'Vencido' else ('orange' if val == 'Vence Hoy' else 'green')
             return f'color: {color}'
 
-        # Manejar compatibilidad de versiones antiguas de Pandas que usaban applymap
-        if hasattr(df.style, 'map'):
-            st.dataframe(df.style.map(color_estado, subset=['estado']))
-        else:
-            st.dataframe(df.style.applymap(color_estado, subset=['estado']))
+        if eleccion == "Inventario Completo":
+            st.header("Inventario Completo de Muestras")
+
+            # Mostrar notificaciones de vencimiento como un resumen
+            vencidos = df[df['estado'] == 'Vencido']
+            if not vencidos.empty:
+                st.error(f"⚠️ Alerta: Hay {len(vencidos)} muestras vencidas en total.")
+
+            # Mostrar tabla completa
+            if hasattr(df.style, 'map'):
+                st.dataframe(df.style.map(color_estado, subset=['estado']))
+            else:
+                st.dataframe(df.style.applymap(color_estado, subset=['estado']))
+
+        elif eleccion == "Muestras Vencidas":
+            st.header("Muestras Vencidas")
+
+            vencidos = df[df['estado'] == 'Vencido']
+
+            if not vencidos.empty:
+                columnas_deseadas = [
+                    'fecha_elaboracion',
+                    'producto',
+                    'numero_orden',
+                    'fecha_descarte',
+                    'cantidad_producto',
+                    'responsable_elaboracion',
+                    'estado'
+                ]
+
+                vencidos_filtrado = vencidos[columnas_deseadas]
+
+                if hasattr(vencidos_filtrado.style, 'map'):
+                    st.dataframe(vencidos_filtrado.style.map(color_estado, subset=['estado']))
+                else:
+                    st.dataframe(vencidos_filtrado.style.applymap(color_estado, subset=['estado']))
+            else:
+                st.success("¡Excelente! No hay muestras vencidas.")
     else:
         st.info("No hay muestras registradas en el inventario.")
