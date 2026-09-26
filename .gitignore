@@ -1,0 +1,7 @@
+*.db
+__pycache__/
+*.pyc
+
+# Mac OS files
+.DS_Store
+mobile_app/node_modules
