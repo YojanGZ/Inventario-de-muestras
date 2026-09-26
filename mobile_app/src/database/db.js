@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 export const getDb = () => {
+  // Use the modern API introduced in SDK 51: openDatabaseSync instead of openDatabase
   return SQLite.openDatabaseSync('inventario.db');
 };
 
