@@ -33,9 +33,8 @@ export default function FormScreen() {
   };
 
   const onChangePicker = (event, selectedDate) => {
-    if (Platform.OS === 'android') {
-      setShowPicker({ ...showPicker, visible: false });
-    }
+    setShowPicker({ ...showPicker, visible: false });
+
     if (selectedDate && showPicker.field) {
       updateField(showPicker.field, selectedDate);
     }
@@ -45,12 +44,16 @@ export default function FormScreen() {
     setShowPicker({ visible: true, mode, field });
   };
 
+  const padZero = (num) => num.toString().padStart(2, '0');
+
   const formatDate = (dateObj) => {
-    return dateObj.toISOString().split('T')[0];
+    // Return local date formatted as YYYY-MM-DD to avoid UTC offset issues
+    return `${dateObj.getFullYear()}-${padZero(dateObj.getMonth() + 1)}-${padZero(dateObj.getDate())}`;
   };
 
   const formatTime = (dateObj) => {
-    return dateObj.toTimeString().split(' ')[0];
+    // Return local time formatted as HH:MM:SS
+    return `${padZero(dateObj.getHours())}:${padZero(dateObj.getMinutes())}:${padZero(dateObj.getSeconds())}`;
   };
 
   const handleSave = async () => {

@@ -1,16 +1,14 @@
 import React, { useEffect } from 'react';
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { initDb } from './src/database/db';
 
 import FormScreen from './src/screens/FormScreen';
-const Tab = createBottomTabNavigator();
 import InventoryFullScreen from './src/screens/InventoryFullScreen';
 import InventoryExpiredScreen from './src/screens/InventoryExpiredScreen';
 
-
-import { View, Text } from 'react-native';
-
+const Tab = createBottomTabNavigator();
 
 export default function App() {
   const [dbReady, setDbReady] = React.useState(false);
